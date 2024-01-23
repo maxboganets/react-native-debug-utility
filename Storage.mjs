@@ -6,32 +6,9 @@ const Constants= = {
 };
 
 export let Storage = {
-    caseKey: function (key, caseId) {
-        return key + '-' + caseId;
-    },
-
-    caseAndPersonKey: function (key, caseId, personId) {
-        return key + '-' + personId + '-' + caseId;
-    },
-
-    getWithCaseKeyFallback: function (key, caseId) {
-        // sync for pending requests used to happen for local storage values keyed independently of case IDs.  Now
-        // they're keyed by case ID.  The code has stopped writing to LS for the non-case-keys but needs to check them
-        // until there's no chance the app will need to sync that data anymore.
-        let rawResults;
-        return this.get(key)
-            .then( (rawResultsFromLs) => {
-                rawResults = rawResultsFromLs;
-                return this.get(this.caseKey(key, caseId));
-            })
-            .then( (caseResults) => {
-                return Promise.resolve((rawResults || []).concat(caseResults || []));
-            });
-    },
-
     // send this a key - returns JSON
     get: function (key, raw, callback) {
-        if (callback) {
+        if (typeof callback == "function") {
             AsyncStorage.getItem(Constants.storagePrefix + key, (data) => {
                 let returnData = null;
                 if (data) {
@@ -48,12 +25,7 @@ export let Storage = {
                 AsyncStorage.getItem(Constants.storagePrefix + key)
                     .then( (data) => {
                         if (data) {
-                            let returnData = null;
-                            if (raw) {
-                                returnData = data;
-                            } else {
-                                returnData = JSON.parse(data);
-                            }
+                            const returnData = raw ? data : JSON.parse(data);
 
                             window.setTimeout( () => {
                                 resolve(returnData);
@@ -76,7 +48,7 @@ export let Storage = {
         if (valueJSON == null) {
             return this.delete(key, callback);
         } else {
-            if (callback) {
+            if (typeof callback == "function") {
                 AsyncStorage.setItem(Constants.storagePrefix + key, saveRaw ? valueJSON : JSON.stringify(valueJSON), callback);
             } else {
                 return AsyncStorage.setItem(Constants.storagePrefix + key, saveRaw ? valueJSON : JSON.stringify(valueJSON));
@@ -84,12 +56,12 @@ export let Storage = {
         }
     },
 
-    multiSet: function (arrayOfArrays, callback) {
+    multiSet: function (arrayOfArrays, callback = () => {}) {
         AsyncStorage.multiSet(arrayOfArrays, callback);
     },
 
     delete: function (key, callback) {
-        if (callback) {
+        if (typeof callback == "function") {
             AsyncStorage.removeItem(Constants.storagePrefix + key, callback);
         } else {
             return AsyncStorage.removeItem(Constants.storagePrefix + key);
@@ -108,7 +80,6 @@ export let Storage = {
 
                 return this.set(key, newArray, false, callback);
             });
-
     },
 
     mergeArrayToArray: function (key, inputArray, callback) {
@@ -139,29 +110,5 @@ export let Storage = {
 
                 return this.set(key, updatedDataArray, false, callback);
             });
-    },
-
-    arrayWithIdOrTempIdItemReplaced: function (originalArray, passedId, replaceValue) {
-        let updatedArray = [];
-        let newValue = true;
-
-        for (let i = 0; i < originalArray.length; i++) {
-            let arrayItem = originalArray[i];
-            let checkValue = null;
-
-
-            if ('' + arrayItem.id === '' + passedId || '' + arrayItem.new_temp_id === '' + passedId) {
-                updatedArray.push(replaceValue);
-                newValue = false;
-            } else {
-                updatedArray.push(arrayItem);
-            }
-        }
-
-        if (newValue) {
-            updatedArray.push(replaceValue);
-        }
-
-        return updatedArray;
     }
 };
